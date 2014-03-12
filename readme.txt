@@ -1,10 +1,10 @@
 === PushUp Notifications ===
-Contributors: 10up, carldanley, jakemgold, johnjamesjacoby, houseofgrays
-Donate link: http://pushupnotifications.com/
-Tags: notifications, push, news, services
+Contributors: 10up, carldanley, jakemgold, johnjamesjacoby, houseofgrays, cmmarslender
+Donate link: https://pushupnotifications.com/
+Tags: push notifications, notifications, push, news, services
 Requires at least: 3.8
 Tested up to: 3.8.1
-Stable tag: 1.0
+Stable tag: 1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,10 @@ After the first month, we have a "pay as you grow" model where you pay for the a
 4. Visitors click allow in Safari 7 to receive notifications. That's it.
 
 == Changelog ==
+
+= 1.1 =
+* Support for validating a provisioned domain name mapped with WordPress MU Domain Mapping
+* Requested pushes now occur when posts are published outside of the post editor (e.g. scheduled posts, quick edit)
 
 = 1.0 =
 * First version!

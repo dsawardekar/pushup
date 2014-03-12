@@ -93,7 +93,7 @@ class PushUp_Notifications {
 		wp_enqueue_script( 'pushup', $script, array( 'jquery' ), '1.0', true );
 
 		wp_localize_script( 'pushup', 'PushUpNotificationSettings', array(
-			'domain'        => site_url(),
+			'domain'        => PushUp_Notifications_Core::get_site_url(),
 			'websitePushID' => PushUp_Notifications_Core::get_website_push_id(),
 			'webServiceURL' => self::$_api_url,
 			'userID'        => PushUp_Notifications_JSON_API::get_user_id(),
@@ -340,7 +340,7 @@ class PushUp_Notifications {
 		}
 
 		// Only users that can edit this post can push
-		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+		if ( ! current_user_can( 'edit_post', $post->ID ) && ! defined( 'DOING_CRON' ) ) {
 			return;
 		}
 
@@ -364,21 +364,42 @@ class PushUp_Notifications {
 			return;
 		}
 
-		/** Data Validation ***************************************************/
+		/** Validate Push Status **********************************************/
 
-		// Reset pushed status to unpushed if no time exists
+		/**
+		 * Force pushed status to unpushed if no time exists.
+		 *
+		 * This fixes otherwise unexpected data corruption from who-knows-where,
+		 * and prevents a post thinking it's been pushed, without knowing when
+		 * it happened, resulting in an inconsistent checkbox UI.
+		 **/
 		if ( empty( $push_setting['time'] ) ) {
 			$push_setting['status'] = 'unpushed';
 		}
 
-		// Calculate post meta time
+		/** Validate Push Time ************************************************/
+
+		// Current author is saving a post with the checkbox checked
 		if ( ! empty( $_POST[ 'pushup-notification-creation' ] ) && ( 'on' === $_POST[ 'pushup-notification-creation' ] ) ) {
 			$push_setting['time'] = current_time( 'timestamp' );
+
+		// Either author is saving with checkbox unchecked, or some other code
+		// is attempting to publish this post for us.
 		} else {
-			$push_setting['time'] = 0;
+
+			// Post is magically transitioning from scheduled to 'publish', likely
+			// via a cron job of some kind.
+			if ( ( 'publish' === $new_status ) && ( 'future' === $old_status ) ) {
+				$push_setting['time'] = current_time( 'timestamp' );
+
+			// Set the time back to empty, as the author has not requested to
+			// push this post in this request.
+			} else {
+				$push_setting['time'] = 0;
+			}
 		}
 
-		/** Try to Push *******************************************************/
+		/** Check the API *****************************************************/
 
 		// Don't push if post was previously pushed
 		if ( ( 'publish' === $new_status ) && ( !empty( $push_setting['time'] ) ) ) {
@@ -485,7 +506,7 @@ class PushUp_Notifications {
 				'api_key'       => $api_key,
 				'url_arguments' => $url_arguments,
 				'mode'          => self::$_recipient_mode,
-				'domain'        => site_url(),
+				'domain'        => PushUp_Notifications_Core::get_site_url(),
 			)
 		);
 
