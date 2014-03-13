@@ -4,7 +4,7 @@ Donate link: https://pushupnotifications.com/
 Tags: push notifications, notifications, push, news, services
 Requires at least: 3.8
 Tested up to: 3.8.1
-Stable tag: 1.1
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ After the first month, we have a "pay as you grow" model where you pay for the a
 4. Visitors click allow in Safari 7 to receive notifications. That's it.
 
 == Changelog ==
+
+= 1.1.1 =
+* Refine support for scheduled posts
 
 = 1.1 =
 * Support for validating a provisioned domain name mapped with WordPress MU Domain Mapping
