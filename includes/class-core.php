@@ -235,6 +235,30 @@ class PushUp_Notifications_Core {
 	}
 
 	/**
+	 * Gets the primary domain for the site.
+	 *
+	 * This function is necessary for MU sites where the URL for the backend is different than the URL for the frontend.
+	 *
+	 * See https://github.com/10up/PushUp/issues/9 for more information.
+	 *
+	 * @return string Represents the primary domain name for the domain name being used.
+	 */
+	public static function get_site_url() {
+		$url = '';
+
+		// Support for WordPress MU Domain Mapping
+		if ( function_exists( 'domain_mapping_siteurl' ) ) {
+			$url = domain_mapping_siteurl('');
+		}
+
+		if ( empty( $url ) ) {
+			$url = site_url();
+		}
+
+		return apply_filters( 'pushup_site_url', $url );
+	}
+
+	/**
 	 * Gets the API key that will be used for communications with our push notification platform.
 	 *
 	 * @return mixed|void

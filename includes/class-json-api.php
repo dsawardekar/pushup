@@ -118,7 +118,7 @@ class PushUp_Notifications_JSON_API {
 			$api_key = PushUp_Notifications_Core::get_api_key();
 		}
 
-		$site_url = site_url();
+		$site_url = PushUp_Notifications_Core::get_site_url();
 		$actions  = array(
 			'push.authenticate' => array(
 				'username' => $username,
@@ -162,7 +162,7 @@ class PushUp_Notifications_JSON_API {
 
 		return self::_perform_authenticated_query( array(
 			'push.icons.update' => array(
-				'domain' => site_url(),
+				'domain' => PushUp_Notifications_Core::get_site_url(),
 				'data'   => $data,
 				'id'     => $icon_id,
 				'mode'   => $mode,
@@ -179,7 +179,7 @@ class PushUp_Notifications_JSON_API {
 	public static function set_website_name( $name = '', $username = '', $api_key = '' ) {
 		return self::_perform_authenticated_query( array(
 			'push.domain.config.setWebsiteName' => array(
-				'domain'       => site_url(),
+				'domain'       => PushUp_Notifications_Core::get_site_url(),
 				'website_name' => sanitize_text_field( $name ),
 			),
 		), $username, $api_key );
