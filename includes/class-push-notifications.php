@@ -374,9 +374,8 @@ class PushUp_Notifications {
 		/**
 		 * Force pushed status to unpushed if no time exists.
 		 *
-		 * This fixes otherwise unexpected data corruption from who-knows-where,
-		 * and prevents a post thinking it's been pushed, without knowing when
-		 * it happened, resulting in an inconsistent checkbox UI.
+		 * This fixes otherwise unexpected data corruption from who-knows-where, and prevents a post thinking it's been
+		 * pushed, without knowing when it happened, resulting in an inconsistent checkbox UI.
 		 **/
 		if ( empty( $push_setting['time'] ) ) {
 			$push_setting['status'] = 'unpushed';
@@ -445,12 +444,6 @@ class PushUp_Notifications {
 	 * @return bool
 	 */
 	protected static function _is_post_request() {
-
-		// Cron requests don't count
-		if ( defined( 'DOING_CRON' ) ) {
-			return false;
-		}
-
 		return (bool) ( 'POST' === strtoupper( $_SERVER['REQUEST_METHOD'] ) );
 	}
 
