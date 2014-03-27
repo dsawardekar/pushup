@@ -96,7 +96,7 @@ class PushUp_Notifications {
 			'domain'        => PushUp_Notifications_Core::get_site_url(),
 			'websitePushID' => PushUp_Notifications_Core::get_website_push_id(),
 			'webServiceURL' => self::$_api_url,
-			'userID'        => PushUp_Notifications_JSON_API::get_user_id(),
+			'userID'        => PushUp_Notifications_Core::get_user_id(),
 		) );
 	}
 
@@ -221,7 +221,7 @@ class PushUp_Notifications {
 		PushUp_Notifications_JSON_API::authenticate();
 
 		// Bail if not an allowed post type
-		if ( ! in_array( $post_type, apply_filters( 'pushup_allowed_post_types', array( 'post' ) ) ) ) {
+		if ( ! self::_is_post_type_allowed( $post_type ) ) {
 			return;
 		}
 
@@ -339,6 +339,11 @@ class PushUp_Notifications {
 			return;
 		}
 
+		// Bail if not an allowed post type
+		if ( ! self::_is_post_type_allowed( get_post_type( $post ) ) ) {
+			return;
+		}
+
 		// Only users that can edit this post can push
 		if ( ! current_user_can( 'edit_post', $post->ID ) && ! defined( 'DOING_CRON' ) ) {
 			return;
@@ -369,9 +374,8 @@ class PushUp_Notifications {
 		/**
 		 * Force pushed status to unpushed if no time exists.
 		 *
-		 * This fixes otherwise unexpected data corruption from who-knows-where,
-		 * and prevents a post thinking it's been pushed, without knowing when
-		 * it happened, resulting in an inconsistent checkbox UI.
+		 * This fixes otherwise unexpected data corruption from who-knows-where, and prevents a post thinking it's been
+		 * pushed, without knowing when it happened, resulting in an inconsistent checkbox UI.
 		 **/
 		if ( empty( $push_setting['time'] ) ) {
 			$push_setting['status'] = 'unpushed';
@@ -379,23 +383,28 @@ class PushUp_Notifications {
 
 		/** Validate Push Time ************************************************/
 
-		// Current author is saving a post with the checkbox checked
-		if ( ! empty( $_POST[ 'pushup-notification-creation' ] ) && ( 'on' === $_POST[ 'pushup-notification-creation' ] ) ) {
-			$push_setting['time'] = current_time( 'timestamp' );
+		// Current author is saving or updating a post
+		if ( self::_is_post_request() ) {
 
-		// Either author is saving with checkbox unchecked, or some other code
-		// is attempting to publish this post for us.
-		} else {
-
-			// Post is magically transitioning from scheduled to 'publish', likely
-			// via a cron job of some kind.
-			if ( ( 'publish' === $new_status ) && ( 'future' === $old_status ) ) {
-				$push_setting['time'] = current_time( 'timestamp' );
-
-			// Set the time back to empty, as the author has not requested to
-			// push this post in this request.
-			} else {
+			// Checkbox is unchecked so force time to 0
+			if ( empty( $_POST[ 'pushup-notification-creation' ] ) || ( 'off' === $_POST[ 'pushup-notification-creation' ] ) ) {
 				$push_setting['time'] = 0;
+
+			// Checkbox is checked, so force time to current time
+			} elseif ( 'on' === $_POST[ 'pushup-notification-creation' ] ) {
+				$push_setting['time'] = current_time( 'timestamp' );
+			}
+
+		// Future dated post switching to publish
+		} elseif ( ( 'publish' === $new_status ) && ( 'future' === $old_status ) ) {
+
+			// Checkbox was not checked when post was saved, so force time to 0
+			if ( empty( $push_setting['time'] ) ) {
+				$push_setting['time'] = 0;
+
+			// Checkbox was previously checked, so update the push time
+			} else {
+				$push_setting['time'] = current_time( 'timestamp' );
 			}
 		}
 
@@ -427,6 +436,30 @@ class PushUp_Notifications {
 
 		// Update the push setting
 		self::set_push_setting( $push_setting,  $post->ID );
+	}
+
+	/**
+	 * Return true|false if this is a POST request
+	 *
+	 * @return bool
+	 */
+	protected static function _is_post_request() {
+		return (bool) ( 'POST' === strtoupper( $_SERVER['REQUEST_METHOD'] ) );
+	}
+
+	/**
+	 * Is a post type allowed to be pushed?
+	 *
+	 * @param string $post_type
+	 * @return bool
+	 */
+	protected static function _is_post_type_allowed( $post_type = '' ) {
+
+		// Allowed post types
+		$allowed_types = apply_filters( 'pushup_allowed_post_types', array( 'post' ) );
+
+		// Return true|false if post type is in allowed types array
+		return (bool) in_array( $post_type, $allowed_types );
 	}
 
 	/**
