@@ -66,9 +66,9 @@ class PushUp_Notifications_Core {
 		}
 
 		// Add our methods to some actions
-		add_action( 'admin_init',                         array( __CLASS__, 'database_upgrade'         ), 2 );
-		add_action( 'admin_init',                         array( __CLASS__, 'authenticate'             ), 4 );
-		add_action( 'admin_init',                         array( __CLASS__, 'register_settings'        ), 6 );
+		add_action( 'admin_init',                         array( __CLASS__, 'database_upgrade'         ), 2 ); // Early to upgrade old options before authentication
+		add_action( 'admin_init',                         array( __CLASS__, 'authenticate'             ), 4 ); // Early to authenticate before settings are registered
+		add_action( 'admin_init',                         array( __CLASS__, 'register_settings'        ), 6 ); // Early so settings could be conditionally de-registered
 		add_action( 'admin_menu',                         array( __CLASS__, 'admin_menu'               )    );
 		add_action( 'admin_notices',                      array( __CLASS__, 'activation_notice'        )    );
 		add_action( 'admin_enqueue_scripts',              array( __CLASS__, 'admin_enqueue_scripts'    )    );
@@ -98,8 +98,6 @@ class PushUp_Notifications_Core {
 
 		$result = PushUp_Notifications_JSON_API::update_icon( $data[ 'iconURL' ], $data[ 'iconID' ], $data[ 'currentMode' ] );
 		wp_send_json( $result );
-
-		exit;
 	}
 
 	/**
