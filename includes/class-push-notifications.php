@@ -96,7 +96,7 @@ class PushUp_Notifications {
 			'domain'        => PushUp_Notifications_Core::get_site_url(),
 			'websitePushID' => PushUp_Notifications_Core::get_website_push_id(),
 			'webServiceURL' => self::$_api_url,
-			'userID'        => PushUp_Notifications_JSON_API::get_user_id(),
+			'userID'        => PushUp_Notifications_Core::get_user_id(),
 		) );
 	}
 
