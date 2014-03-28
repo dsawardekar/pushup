@@ -73,6 +73,7 @@ class PushUp_Notifications_Core {
 		add_action( 'admin_notices',                      array( __CLASS__, 'activation_notice'        )    );
 		add_action( 'admin_enqueue_scripts',              array( __CLASS__, 'admin_enqueue_scripts'    )    );
 		add_action( 'wp_ajax_update-push-package-icon',   array( __CLASS__, 'update_push_package_icon' )    );
+		add_action( 'load-settings_page_pushup-settings', array( __CLASS__, 'settings_fields'          )    );
 		add_action( 'load-settings_page_pushup-settings', array( __CLASS__, 'settings_help'            )    );
 	}
 
@@ -111,16 +112,21 @@ class PushUp_Notifications_Core {
 	}
 
 	/**
-	 * Register the settings sections and fields on admin init
-	 *
-	 * Happens after authenticate() so some settings sections can be skipped if
-	 * authentication is broken.
+	 * Register the settings
 	 */
 	public static function register_settings() {
-
 		// Register the settings array
 		register_setting( 'pushup', self::$option_key, array( __CLASS__, 'sanitize_settings' ) );
+	}
 
+	/**
+	 * Register settings sections and fields before loading the settings page.
+	 *
+	 * Happens after authenticate() so some settings sections can be skipped if
+	 * authentication is broken. Also only happens for our settings page, to avoid
+	 * admin_init overhead.
+	 */
+	public static function settings_fields() {
 		// Register the settings sections
 		foreach ( self::get_settings_sections() as $section_id => $section_attributes ) {
 			add_settings_section( $section_id, $section_attributes['title'], $section_attributes['callback'], self::$menu_page );

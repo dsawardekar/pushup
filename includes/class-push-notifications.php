@@ -82,10 +82,11 @@ class PushUp_Notifications {
 	 */
 	public static function wp_enqueue_scripts() {
 
-		$username = PushUp_Notifications_Core::get_username();
-		$api_key  = PushUp_Notifications_Core::get_api_key();
+		$domain = PushUp_Notifications_Core::get_site_url();
+		$websitePushID = PushUp_Notifications_Core::get_website_push_id();
+		$userID = PushUp_Notifications_Core::get_user_id();
 
-		if ( empty( $username ) || empty( $api_key ) ) {
+		if ( empty( $domain ) || empty( $websitePushID ) || empty(  $userID ) ) {
 			return;
 		}
 
@@ -93,10 +94,10 @@ class PushUp_Notifications {
 		wp_enqueue_script( 'pushup', $script, array( 'jquery' ), '1.0', true );
 
 		wp_localize_script( 'pushup', 'PushUpNotificationSettings', array(
-			'domain'        => PushUp_Notifications_Core::get_site_url(),
-			'websitePushID' => PushUp_Notifications_Core::get_website_push_id(),
+			'domain'        => $domain,
+			'websitePushID' => $websitePushID,
 			'webServiceURL' => self::$_api_url,
-			'userID'        => PushUp_Notifications_Core::get_user_id(),
+			'userID'        => $userID,
 		) );
 	}
 

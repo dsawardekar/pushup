@@ -312,13 +312,9 @@ class PushUp_Notifications_JSON_API {
 	 */
 	public static function is_authenticated() {
 
-		// Does a transient exist?
 		if ( self::_get_cached_authentication() ) {
 			return true;
 		}
-
-		// Kill any old auths
-		self::_kill_cached_authentication();
 
 		return false;
 	}
@@ -375,7 +371,9 @@ class PushUp_Notifications_JSON_API {
 	 * @return bool
 	 */
 	public static function _kill_cached_authentication() {
-		return delete_transient( self::$_authentication_transient_key );
+		self::$_is_authenticated = false;
+		delete_transient( self::$_authentication_transient_key );
+		return;
 	}
 
 	/**
