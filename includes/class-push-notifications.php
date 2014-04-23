@@ -412,17 +412,17 @@ class PushUp_Notifications {
 
 		// Don't push if post was previously pushed
 		if ( ( 'publish' === $new_status ) && ( !empty( $push_setting['time'] ) ) ) {
-			$post_url      = wp_get_shortlink( $post->ID );
+			$post_url      = PushUp_Notifications_Core::get_shortlink( $post->ID );
 			$url_parameter = str_replace( array( 'http://', 'https://' ), '', $post_url );
 
 			// cap for title is: 35 characters (before being trimmed by OSX)
 			// cap for body is: 133 characters (before being trimmed by OSX)
-			$title  = PushUp_Notifications_Core::get_post_title();
-			$body   = self::_maybe_trim_post_title( apply_filters( 'the_title', $post->post_title, $post->ID ) );
-			$action = 'See Post';
-			$pushed = self::send_message( $title, $body, $action, array( $url_parameter ) );
+			$title         = PushUp_Notifications_Core::get_post_title();
+			$body          = self::_maybe_trim_post_title( apply_filters( 'the_title', $post->post_title, $post->ID ) );
+			$action        = 'See Post';
+			$pushed        = self::send_message( $title, $body, $action, array( $url_parameter ) );
 		} else {
-			$pushed = null;
+			$pushed        = null;
 		}
 
 		/** Push Status *******************************************************/
