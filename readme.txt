@@ -1,10 +1,10 @@
 === PushUp Notifications ===
 Contributors: 10up, carldanley, jakemgold, johnjamesjacoby, houseofgrays, cmmarslender
 Donate link: https://pushupnotifications.com/
-Tags: push notifications, notifications, push, news, services
+Tags: push notifications, push notification, notifications, push, news, services
 Requires at least: 3.8
 Tested up to: 3.9
-Stable tag: 1.1.3
+Stable tag: 1.1.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,19 @@ After the first month, we have a "pay as you grow" model where you pay for the a
 4. Visitors click allow in Safari 7 to receive notifications. That's it.
 
 == Changelog ==
+
+= 1.1.6 =
+* Use unfiltered short links to ensure click through analytic data passes to final web address
+* Introduce filters enabling customization of click through parameters (previously handled on PushUp's side)
+* Refine plugin upgrade checks, preventing needless API calls and fixing activation scenarios where settings needed to be saved twice
+
+= 1.1.5 =
+* "Save Changes" button on settings screen more appropriately labeled "Activate PushUp" when plugin is not fully configured to send notifications
+* Additional improvements to admin performance by further reducing PushUp API requests
+
+= 1.1.4 =
+* Improve admin performance by reducing requests to PushUp API
+* Refine logic for determining whether to render front end scripts
 
 = 1.1.3 =
 * Improved caching of website credentials on the front end

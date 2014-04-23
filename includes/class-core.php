@@ -30,7 +30,14 @@ class PushUp_Notifications_Core {
 	 *
 	 * @var int
 	 */
-	protected static $database_version = 1030;
+	protected static $database_version = 1050;
+
+	/**
+	 * Script version, for CSS/JS caching
+	 *
+	 * @var string
+	 */
+	protected static $script_version = '20140401a';
 
 	/**
 	 * Handles initializing this class and returning the singleton instance after it's been cached.
@@ -66,14 +73,32 @@ class PushUp_Notifications_Core {
 		}
 
 		// Add our methods to some actions
-		add_action( 'admin_init',                         array( __CLASS__, 'database_upgrade'         ), 2 );
-		add_action( 'admin_init',                         array( __CLASS__, 'authenticate'             ), 4 );
-		add_action( 'admin_init',                         array( __CLASS__, 'register_settings'        ), 6 );
-		add_action( 'admin_menu',                         array( __CLASS__, 'admin_menu'               )    );
-		add_action( 'admin_notices',                      array( __CLASS__, 'activation_notice'        )    );
-		add_action( 'admin_enqueue_scripts',              array( __CLASS__, 'admin_enqueue_scripts'    )    );
-		add_action( 'wp_ajax_update-push-package-icon',   array( __CLASS__, 'update_push_package_icon' )    );
-		add_action( 'load-settings_page_pushup-settings', array( __CLASS__, 'settings_help'            )    );
+		add_action( 'admin_init',                         array( __CLASS__, 'database_upgrade'         ), 2  ); // Early to upgrade old options before authentication
+		add_action( 'admin_init',                         array( __CLASS__, 'register_settings'        ), 6  ); // Early so settings could be conditionally de-registered
+		add_action( 'admin_menu',                         array( __CLASS__, 'admin_menu'               )     );
+		add_action( 'admin_notices',                      array( __CLASS__, 'activation_notice'        )     );
+		add_action( 'admin_enqueue_scripts',              array( __CLASS__, 'admin_enqueue_scripts'    )     );
+		add_action( 'wp_ajax_update-push-package-icon',   array( __CLASS__, 'update_push_package_icon' )     );
+		add_action( 'load-settings_page_pushup-settings', array( __CLASS__, 'settings_fields'          )     );
+		add_action( 'load-settings_page_pushup-settings', array( __CLASS__, 'settings_help'            )     );
+
+		// add filters
+		add_filter( 'pushup_get_shortlink',               array( __CLASS__, 'add_pushup_query_arg'     )     );
+	}
+
+	/**
+	 * Filter the default `pushup_get_shortlink` so that it returns the URL with
+	 * "pushup=1" appended to it.
+	 *
+	 * @param string $shortlink A shortlink URL that will be filtered to add
+	 *                          "pushup=1" for analytics.
+	 *
+	 * @return string           A shortlink or an empty string if no shortlink
+	 *                          exists for the requested resource or if
+	 *                          shortlinks are not enabled.
+	 */
+	public static function add_pushup_query_arg( $shortlink = '' ) {
+		return add_query_arg( 'pushup', '1', $shortlink );
 	}
 
 	/** Admin Init ************************************************************/
@@ -98,31 +123,24 @@ class PushUp_Notifications_Core {
 
 		$result = PushUp_Notifications_JSON_API::update_icon( $data[ 'iconURL' ], $data[ 'iconID' ], $data[ 'currentMode' ] );
 		wp_send_json( $result );
-
-		exit;
 	}
 
 	/**
-	 * Authenticate on admin init
-	 *
-	 * Happens after database upgrade and before settings are registered, so
-	 * that some settings sections can be skipped if user is not authenticated.
-	 */
-	public static function authenticate() {
-		PushUp_Notifications_JSON_API::authenticate();
-	}
-
-	/**
-	 * Register the settings sections and fields on admin init
-	 *
-	 * Happens after authenticate() so some settings sections can be skipped if
-	 * authentication is broken.
+	 * Register the settings
 	 */
 	public static function register_settings() {
-
 		// Register the settings array
 		register_setting( 'pushup', self::$option_key, array( __CLASS__, 'sanitize_settings' ) );
+	}
 
+	/**
+	 * Register settings sections and fields before loading the settings page.
+	 *
+	 * Happens after authenticate() so some settings sections can be skipped if
+	 * authentication is broken. Also only happens for our settings page, to avoid
+	 * admin_init overhead.
+	 */
+	public static function settings_fields() {
 		// Register the settings sections
 		foreach ( self::get_settings_sections() as $section_id => $section_attributes ) {
 			add_settings_section( $section_id, $section_attributes['title'], $section_attributes['callback'], self::$menu_page );
@@ -145,6 +163,7 @@ class PushUp_Notifications_Core {
 
 		// Get the DB version
 		$raw_db_version = self::get_raw_db_version();
+		$needs_update   = false;
 
 		// Upgrade from before 1.0.0 - consolidate options into 1 array
 		if ( empty( $raw_db_version ) ) {
@@ -166,21 +185,40 @@ class PushUp_Notifications_Core {
 				delete_option( 'pushup-username' );
 				delete_option( 'pushup-website-push-id' );
 				delete_option( 'pushup-api-key' );
+
+				// Option needs updating
+				$needs_update = true;
 			}
 		}
 
+		// Get any existing settings
 		$settings = get_option( self::$option_key );
 
-		// Add 'user-id' to settings
-		if ( $raw_db_version < 1020 ) {
-			$settings['user-id']    = PushUp_Notifications_JSON_API::get_user_id();
-			$settings['db-version'] = self::$database_version;
-			update_option( self::$option_key, $settings );
+		// Override the 'db-version' to current
+		if ( isset( $settings['db-version'] ) && $settings['db-version'] !== self::$database_version ) {
+			$needs_update = true;
 		}
 
-		// Add 'user-id' to settings
-		if ( $raw_db_version < 1030 ) {
+		// Maybe add 'post-title' to settings
+		if ( ( $raw_db_version < 1030 ) && empty( $settings['post-title'] ) ) {
 			$settings['post-title'] = __( 'Just published...', 'pushup' );
+			$needs_update           = true;
+		}
+
+		// Maybe add 'user-id' to settings
+		if ( ( $raw_db_version < 1040 ) && empty( $settings['user-id'] ) ) {
+			$settings['user-id'] = PushUp_Notifications_JSON_API::get_user_id();
+			$needs_update        = true;
+		}
+
+		// Update the option if it needs it
+		if ( true === $needs_update ) {
+
+			// Always update to the current database version. If this doesn't
+			// happen, exil and mysterious bugs appear out of no-where.
+			$settings['db-version'] = self::$database_version;
+
+			// Update the option
 			update_option( self::$option_key, $settings );
 		}
 	}
@@ -269,6 +307,15 @@ class PushUp_Notifications_Core {
 	}
 
 	/**
+	 * Return the protected script version variable
+	 *
+	 * @return string
+	 */
+	public static function get_script_version() {
+		return self::$script_version;
+	}
+
+	/**
 	 * Gets the generic post title
 	 *
 	 * Currently can never be empty; we'll likely replace this with the post
@@ -279,6 +326,74 @@ class PushUp_Notifications_Core {
 	public static function get_post_title() {
 		$options = get_option( self::$option_key );
 		return !empty( $options['post_title'] ) ? $options['post_title'] : __( 'Just published...', 'pushup' );
+	}
+
+	/**
+	 * Return a shortlink for a post, page, attachment, or blog.
+	 *
+	 * Default shortlink support is limited to providing ?p= style
+	 * links for posts. Plugins can short-circuit this function via the
+	 * 'pushup_pre_get_shortlink' filter or filter the output via the
+	 * 'pushup_get_shortlink' filter.
+	 *
+	 * This is mostly a fork of WordPress's `wp_get_shortlink` function to allow
+	 * PushUp to not interfere with existing shortlink plugins (Jetpack, etc...)
+	 *
+	 * @param int    $id          A post or blog id. Default is 0, which means
+	 *                            the current post or blog.
+	 * @param string $context     Whether the id is a 'blog' id, 'post' id, or
+	 *                            'media' id. If 'post', the post_type of the
+	 *                            post is consulted. If 'query', the current
+	 *                            query is consulted to determine the id and
+	 *                            context. Default is 'post'.
+	 * @param bool   $allow_slugs Whether to allow post slugs in the shortlink.
+	 *                            It is up to the plugin how and whether to
+	 *                            honor this.
+	 *
+	 * @return string             A shortlink or an empty string if no shortlink
+	 *                            exists for the requested resource or if
+	 *                            shortlinks are not enabled.
+	 */
+	public static function get_shortlink( $id = 0, $context = 'post', $allow_slugs = true ) {
+
+		// Use this to short-circuit our function completely
+		$shortlink = apply_filters( 'pushup_pre_get_shortlink', false, $id, $context, $allow_slugs );
+		if ( false !== $shortlink ) {
+			return $shortlink;
+		}
+
+		// Define some basic variables
+		global $wp_query;
+		$post_id = 0;
+
+		// Querying posts
+		if ( ( 'query' === $context ) && is_singular() ) {
+			$post_id = $wp_query->get_queried_object_id();
+			$post    = get_post( $post_id );
+
+		// Querying single post
+		} elseif ( 'post' === $context ) {
+			$post = get_post( $id );
+			if ( ! empty( $post->ID ) ) {
+				$post_id = $post->ID;
+			}
+		}
+
+		// Return p= link for all public post types.
+		if ( ! empty( $post_id ) ) {
+			$post_type = get_post_type_object( $post->post_type );
+
+			// If page is the home page, use the root of home_url()
+			if ( ( 'page' === $post->post_type ) && ( $post->ID === (int) get_option( 'page_on_front' ) ) && ( 'page' == get_option( 'show_on_front' ) ) ) {
+				$shortlink = home_url( '/' );
+
+			// If post is of a public type
+			} elseif ( true === $post_type->public ) {
+				$shortlink = home_url( '?p=' . $post_id );
+			}
+		}
+
+		return apply_filters( 'pushup_get_shortlink', (string) $shortlink, $id, $context, $allow_slugs );
 	}
 
 	/**
@@ -297,7 +412,18 @@ class PushUp_Notifications_Core {
 
 				<?php do_settings_sections( self::$menu_page ); ?>
 
-				<?php submit_button(); ?>
+				<?php
+
+					// If data needed to offer notifications isn't set, let's
+					// actually give the button a more clear name: activate!
+					if ( ! PushUp_Notifications_Authentication::get_authentication_data() ) {
+						$submit_text = __( 'Activate PushUp', 'pushup' );
+					} else {
+						$submit_text = __( 'Save Changes' ); // No text domain here
+					}
+
+					submit_button( $submit_text );
+				?>
 
 			</form>
 		</div>
@@ -366,21 +492,17 @@ class PushUp_Notifications_Core {
 		}
 
 		// Check whether the users username and API key are valid
-		if ( PushUp_Notifications_JSON_API::is_authenticated() ) {
+		if ( PushUp_Notifications_Authentication::is_authenticated() ) {
 			$authenticate_class  = 'status-success';
 			$authenticate_status = __( 'Your PushUp username and API key are valid.', 'pushup' );
 
 			if ( PushUp_Notifications_JSON_API::is_domain_enabled() ) {
 				$domain_class = 'status-success';
-				$domain_status = __( 'This domain has been successfully provisioned.', 'pushup' );
+				$domain_status = __( 'PushUp has been provisioned for this domain.', 'pushup' );
 			} else {
 				$domain_class = 'status-error';
-				$domain_status = __( 'This domain name has not yet been provisioned.', 'pushup' );
+				$domain_status = __( 'PushUp has not been provisioned for this domain.', 'pushup' );
 			}
-		} else {
-			// @todo - error code page
-			$url  = 'https://pushupnotifications.com/errors/' . get_option( 'pushup-alert-code' );
-			$info = sprintf( '<a href="%s">%s</a>', esc_url( $url ), $url );
 		} ?>
 
 		<p class="pushup-connection-status <?php echo esc_attr( $connection_class ); ?>"><?php echo esc_html( $connection_status ); ?></p>
@@ -790,9 +912,9 @@ class PushUp_Notifications_Core {
 		wp_enqueue_media();
 
 		// Enqueue our custom CSS and JS
-		wp_enqueue_style( 'pushup-notification-settings',  $base . '/css/settings.css', array() );
-		wp_enqueue_script( 'pushup-notification-charts',   $base . '/js/chart.js',      array( 'jquery' ), false       );
-		wp_enqueue_script( 'pushup-notification-settings', $base . '/js/settings.js',   array( 'jquery' ), false, true );
+		wp_enqueue_style( 'pushup-notification-settings',  $base . '/css/settings.css', array(),           self::get_script_version()       );
+		wp_enqueue_script( 'pushup-notification-charts',   $base . '/js/chart.js',      array( 'jquery' ), self::get_script_version()       );
+		wp_enqueue_script( 'pushup-notification-settings', $base . '/js/settings.js',   array( 'jquery' ), self::get_script_version(), true );
 
 		// Localize the notifications settings
 		wp_localize_script( 'pushup-notification-settings', 'pushNotificationSettings', array(
@@ -809,8 +931,8 @@ class PushUp_Notifications_Core {
 	public static function sanitize_settings( $input ) {
 		$sanitized_input = array();
 
-		// Delete any cached authentications
-		PushUp_Notifications_JSON_API::_kill_cached_authentication();
+		// Nullify any previously cached authentications
+		PushUp_Notifications_Authentication::_set_cached_authentication( null );
 
 		// handle username field
 		$sanitized_input['username'] = empty( $input['username'] ) ? '' : sanitize_text_field( $input['username'] );
@@ -865,7 +987,7 @@ class PushUp_Notifications_Core {
 	 * Helper function to return the settings field sections, their descriptions,
 	 * and help setup their callbacks for rendering.
 	 *
-	 * @return type
+	 * @return array
 	 */
 	public static function get_settings_sections() {
 
@@ -878,7 +1000,7 @@ class PushUp_Notifications_Core {
 		);
 
 		// The following sections are only for authenticated users
-		if ( PushUp_Notifications_JSON_API::is_authenticated() && PushUp_Notifications_JSON_API::is_domain_enabled() ) {
+		if ( PushUp_Notifications_Authentication::is_authenticated() && PushUp_Notifications_JSON_API::is_domain_enabled() ) {
 
 			// Analytics
 			if ( PushUp_Notifications_JSON_API::get_analytics() ) {
@@ -926,7 +1048,7 @@ class PushUp_Notifications_Core {
 		);
 
 		// The following fields are only for authenticated users
-		if ( PushUp_Notifications_JSON_API::is_authenticated() && PushUp_Notifications_JSON_API::is_domain_enabled() ) {
+		if ( PushUp_Notifications_Authentication::is_authenticated() && PushUp_Notifications_JSON_API::is_domain_enabled() ) {
 
 			/** Analytics *****************************************************/
 
