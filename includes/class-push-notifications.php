@@ -387,7 +387,7 @@ class PushUp_Notifications {
 		if ( self::_is_post_request() ) {
 
 			// Checkbox is unchecked so force time to 0
-			if ( empty( $_POST[ 'pushup-notification-creation' ] ) || ( 'off' === $_POST[ 'pushup-notification-creation' ] ) ) {
+			if ( ! defined( 'DOING_CRON' ) && ( empty( $_POST[ 'pushup-notification-creation' ] ) || ( 'off' === $_POST[ 'pushup-notification-creation' ] ) ) ) {
 				$push_setting['time'] = 0;
 
 			// Checkbox is checked, so force time to current time

@@ -30,14 +30,14 @@ class PushUp_Notifications_Core {
 	 *
 	 * @var int
 	 */
-	protected static $database_version = 1050;
+	protected static $database_version = 1060;
 
 	/**
 	 * Script version, for CSS/JS caching
 	 *
 	 * @var string
 	 */
-	protected static $script_version = '20140401a';
+	protected static $script_version = '20140423a';
 
 	/**
 	 * Handles initializing this class and returning the singleton instance after it's been cached.
